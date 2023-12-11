@@ -40,7 +40,6 @@ def check_password(lock, password):
     """
     Check password with final password 
     """
-    print("hellofff")
     if FINAL_PASSWORD == password:
         unlock_door(lock)
         lock.loop_forever(10.0)
