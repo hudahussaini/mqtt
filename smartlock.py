@@ -1,7 +1,8 @@
 import time
 from paho.mqtt import client as mqtt
 
-MQTT_TOPIC_LOCK = "Smartlock"
+MQTT_TOPIC_LOCK_SUB= "Mobile"
+MQTT_TOPIC_LOCK_PUB= "Smartlock"
 FINAL_PASSWORD = "QWERTY123"
 TEMP_PASSWORD = "12345678"
 
@@ -16,7 +17,7 @@ def start_smartlock():
     """
     lock = mqtt.Client(CLIENTID)
     lock.connect(BROKER, PORT)
-    lock.subscribe(MQTT_TOPIC_LOCK)
+    lock.subscribe(MQTT_TOPIC_LOCK_SUB)
     return lock
 
 def lock_door(lock):
@@ -25,7 +26,7 @@ def lock_door(lock):
     Send signal back to mobile saying door is locked
     """
     print("Yay you were able to lock the door")
-    lock.publish(MQTT_TOPIC_LOCK, "Locking Door")
+    lock.publish(MQTT_TOPIC_LOCK_PUB, "Locking Door")
 
 def unlock_door(lock):
     """
@@ -33,7 +34,7 @@ def unlock_door(lock):
     Send signal back to mobile saying door is unlocked
     """
     print("Yay you were able to unlock the door")
-    lock.publish(MQTT_TOPIC_LOCK, "*click* *click* the door has been unlocked")
+    lock.publish(MQTT_TOPIC_LOCK_PUB, "*click* *click* the door has been unlocked")
 
 def check_password(lock, password):
     """
@@ -43,16 +44,20 @@ def check_password(lock, password):
         unlock_door(lock)
         lock.loop_forever(10.0)
         #lock door for saftey after 10 secondsß
+        print("hello")
         lock_door(lock)
     else:
-        lock.publish(MQTT_TOPIC_LOCK, "password is wrong")
-        temp_password()
+        lock.publish(MQTT_TOPIC_LOCK_PUB, "password is wrong")
+        #temp_password()
 
 def temp_password(lock):
-    lock.publish(MQTT_TOPIC_LOCK, f"Temp Password is {TEMP_PASSWORD}")
+    lock.publish(MQTT_TOPIC_LOCK_PUB, f"Temp Password is {TEMP_PASSWORD}")
     
 def on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.payload))
+    #print(msg.topic+" "+str(msg.payload))
+    print(str(msg.payload))
+    check_password(client, str(msg.payload))
+    print(str(msg.payload))
 
 def main():
     lock = start_smartlock()
