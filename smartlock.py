@@ -51,10 +51,16 @@ def check_password(lock, password):
 def temp_password(lock):
     lock.publish(MQTT_TOPIC_LOCK, f"Temp Password is {TEMP_PASSWORD}")
     
+def on_message(client, userdata, msg):
+    print(msg.topic+" "+str(msg.payload))
 
 def main():
     lock = start_smartlock()
-    lock.loop_forever()
-    #if we get a message - check_password
+    lock.loop_start()
+    lock.on_message = on_message
+
+    time.sleep(40)
+    lock.disconnect()
+    lock.loop_stop()
 
 main()
