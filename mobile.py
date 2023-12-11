@@ -25,12 +25,20 @@ def request_to_unlock(mobile):
 def request_to_lock(mobile):
     mobile.publish(MQTT_TOPIC_LOCK_PUB, "Request to lock")
 
+def on_message(client, userdata, msg):
+    """
+    Anytime a message is published to server this runs
+    """
+    print(msg.topic+" "+str(msg.payload))
+
+
 def main():
     mobile = start_session()
     user_password = input("Please Enter your password: ")
     #request_to_unlock(mobile)
     mobile.publish(MQTT_TOPIC_LOCK_PUB, user_password)
 
+    mobile.on_message = on_message
 
     time.sleep(40)
     mobile.disconnect()

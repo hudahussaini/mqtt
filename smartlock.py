@@ -55,9 +55,10 @@ def temp_password(lock):
     
 def on_message(client, userdata, msg):
     #print(msg.topic+" "+str(msg.payload))
-    print(str(msg.payload))
+    """
+    Anytime a message is published to server this runs
+    """
     check_password(client, str(msg.payload))
-    print(str(msg.payload))
 
 def main():
     lock = start_smartlock()
