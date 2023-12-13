@@ -23,16 +23,26 @@ def request_to_unlock(mobile, password):
     mobile.publish(MQTT_TOPIC_LOCK_PUB, f'Request to Unlock: {password}')
 
 def request_to_lock(mobile):
-    mobile.publish(MQTT_TOPIC_LOCK_PUB, "Request to lock")
+    mobile.publish(MQTT_TOPIC_LOCK_PUB, "Request to Lock")
 
 def request_temp_pw(mobile, password):
     mobile.publish(MQTT_TOPIC_LOCK_PUB, f'Request to activate temp password: {password}')
+
+def use_temp_pass():
+    user_temp_pass = input("Please enter temp password:")
 
 def on_message(client, userdata, msg):
     """
     Anytime a message is published to server this runs
     """
-    print(msg.topic+" "+str(msg.payload))
+    strmsg = (msg.payload).decode()
+    print("log", strmsg)
+    if strmsg == 'Temp password needed':
+        use_temp_pass()
+    else:
+        print(strmsg)
+        exit()
+
 
 
 def main():
@@ -50,10 +60,10 @@ def main():
         user_password = input("Please enter your password: ")
         request_to_unlock(mobile, user_password)
     elif choice == '2':
-        request_to_unlock(mobile)
+        request_to_lock(mobile)
     elif choice == '3':
-        Temp_password = input("Please enter the temp password: ")
-        request_to_unlock(mobile, Temp_password)
+        user_password = input("Please enter the permanent password: ")
+        request_to_unlock(mobile, user_password)
     elif choice == '4':
         print("Exiting program. Goodbye!")
         exit()

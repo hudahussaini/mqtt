@@ -5,6 +5,7 @@ MQTT_TOPIC_LOCK_SUB= "Mobile"
 MQTT_TOPIC_LOCK_PUB= "Smartlock"
 FINAL_PASSWORD = 'QWERTY123'
 TEMP_PASSWORD = "12345678"
+Temp_Activated = False
 
 CLIENTID = "SmartLock"
 BROKER = "localhost"
@@ -25,7 +26,7 @@ def lock_door(lock):
     If this was real we would call a function to actually lock the door
     Send signal back to mobile saying door is locked
     """
-    print("lock")
+    print("Mobile Client is Locking")
     lock.publish(MQTT_TOPIC_LOCK_PUB, "Locking Door")
 
 def unlock_door(lock):
@@ -33,7 +34,9 @@ def unlock_door(lock):
     If this was real we would call a function to actually unlock the door
     Send signal back to mobile saying door is unlocked
     """
-    print("unlock")
+    print("Mobile Client is Unlocking")
+    if Temp_Activated == True:
+        lock.publish(MQTT_TOPIC_LOCK_PUB, "Temp password needed")
     lock.publish(MQTT_TOPIC_LOCK_PUB, "*click* *click* the door has been unlocked")
 
 def check_password(lock, strmessage):
@@ -41,6 +44,7 @@ def check_password(lock, strmessage):
     Check password with final password 
     """
     str_message_pass = strmessage.split(": ", 1)
+    #str message is an array with [request, password]
     password = str_message_pass[1]
     print(password)
     if FINAL_PASSWORD == password:
@@ -51,11 +55,11 @@ def check_password(lock, strmessage):
         if strmessage.startswith("Request to activate temp password:"):
             Activate_Temp(lock, password)
     else:
-        lock.publish(MQTT_TOPIC_LOCK_PUB, "password is wrong do you want to create a temp password (Y/n)")
+        lock.publish(MQTT_TOPIC_LOCK_PUB, "password is wrong")
         #temp_password(lock)
 
-def Activate_Temp(lock, password):
-    pass
+def Activate_Temp():
+     Temp_Activated = True
     
 def on_message(client, userdata, msg):
     #print(msg.topic+" "+str(msg.payload))
@@ -68,10 +72,10 @@ def on_message(client, userdata, msg):
         check_password(client, strmsg)
     elif strmsg == ("Request to Lock"):
         lock_door(client)
-    elif strmsg.startwith("Request to activate temp password"):
-        Activate_Temp(strmsg)
+    elif strmsg.startswith("Request to activate temp password"):
+        check_password(client, strmsg)
     else:
-        pass
+        exit()
 
 def main():
     lock = start_smartlock()
