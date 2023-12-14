@@ -3,6 +3,8 @@ from paho.mqtt import client as mqtt
 
 MQTT_TOPIC_LOCK_SUB= "Mobile"
 MQTT_TOPIC_LOCK_PUB= "Smartlock"
+TOPIC_ACTIVATE_TEMP_SUB = "Activate_Temp"
+TOPIC_UNLOCK_WITH_TEMP_SUB = "Unlock_with_temp"
 FINAL_PASSWORD = 'QWERTY123'
 TEMP_PASSWORD = "12345678"
 Temp_Activated = False
@@ -19,6 +21,8 @@ def start_smartlock():
     lock = mqtt.Client(CLIENTID)
     lock.connect(BROKER, PORT)
     lock.subscribe(MQTT_TOPIC_LOCK_SUB)
+    lock.subscribe(TOPIC_ACTIVATE_TEMP_SUB)
+    lock.subscribe(TOPIC_UNLOCK_WITH_TEMP_SUB)
     # lock.will_set("Break", "Lock is Broken!")
     return lock
 
@@ -40,7 +44,7 @@ def unlock_door(lock):
     #     lock.publish(MQTT_TOPIC_LOCK_PUB, "Temp password needed")
     lock.publish(MQTT_TOPIC_LOCK_PUB, "*click* *click* the door has been unlocked")
 
-def check_password(lock, strmessage):
+def check_password(lock, strmessage, topic):
     """
     Check password with final password 
     """
@@ -49,18 +53,34 @@ def check_password(lock, strmessage):
     password = str_message_pass[1]
     print(password)
     if FINAL_PASSWORD == password:
-        unlock_door(lock)
-        lock.loop_forever(10.0)
-        #lock door for saftey after 10 secondsß
-        lock_door(lock)
-        # if strmessage.startswith("Request to activate temp password:"):
-        #     Activate_Temp(lock, password)
+        if topic == TOPIC_ACTIVATE_TEMP_SUB:
+            Activate_Temp(lock)
+        else:
+            unlock_door(lock)
+            lock.loop_forever(10.0)
+            #lock door for saftey after 10 secondsß
+            lock_door(lock)
     else:
         lock.publish(MQTT_TOPIC_LOCK_PUB, "password is wrong")
         #temp_password(lock)
 
-# def Activate_Temp():
-#      Temp_Activated = True
+def Activate_Temp(lock):
+    Temp_Activated = True
+    lock.publish(MQTT_TOPIC_LOCK_PUB, "temp pw activated")
+    
+
+def Dectivate_temp():
+    Temp_Activated = False
+
+def use_temp_pw_to_unlock(lock, strmsg):
+    str_message_pass = strmsg.split(": ", 1)
+    #str message is an array with [request, password]
+    user_temp_password = str_message_pass[1]
+    if user_temp_password == TEMP_PASSWORD and Temp_Activated:
+        unlock_door()
+        Dectivate_temp()
+    else:
+        lock.publish(MQTT_TOPIC_LOCK_PUB, "password is wrong or temp pw not activated")
     
 def on_message(client, userdata, msg):
     #print(msg.topic+" "+str(msg.payload))
@@ -68,13 +88,17 @@ def on_message(client, userdata, msg):
     Anytime a message is published to server this runs
     """
     strmsg = (msg.payload).decode()
+    strtopic = msg.topic
     print("log", strmsg)
-    if strmsg.startswith("Request to Unlock"):
-        check_password(client, strmsg)
+    if strtopic == MQTT_TOPIC_LOCK_SUB:
+        check_password(client, strmsg, MQTT_TOPIC_LOCK_SUB)
     elif strmsg == ("Request to Lock"):
         lock_door(client)
-    elif strmsg.startswith("Request to activate temp password"):
-        check_password(client, strmsg)
+    elif strtopic == TOPIC_ACTIVATE_TEMP_SUB:
+        print("Hello")
+        check_password(client, strmsg, TOPIC_ACTIVATE_TEMP_SUB)
+    elif strtopic == TOPIC_UNLOCK_WITH_TEMP_SUB:
+        use_temp_pw_to_unlock(client, strmsg)
     else:
         exit()
 
