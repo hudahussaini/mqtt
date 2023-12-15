@@ -69,6 +69,7 @@ def check_password(lock, strmessage, topic):
         #temp_password(lock)
 
 def Activate_Temp(lock):
+    global Temp_Activated
     Temp_Activated = True
     lock.publish(MQTT_TOPIC_LOCK_PUB, "temp pw activated")
     
@@ -81,14 +82,10 @@ def use_temp_pw_to_unlock(lock, strmsg):
     #str message is an array with [request, password]
     user_temp_password = str_message_pass[1]
     if user_temp_password == TEMP_PASSWORD and Temp_Activated:
-        unlock_door()
+        unlock_door(lock)
         Dectivate_temp()
     else:
         lock.publish(MQTT_TOPIC_LOCK_PUB, "password is wrong or temp pw not activated")
-
-# def send_notification(lock):
-#     # Implement your notification logic here
-#     lock.publish(MQTT_TOPIC_LOCK_PUB, "WARNING: Lock has been broken into")
 
 def simulate_broken_lock(client):
     # Simulate the lock entering a broken state
@@ -106,7 +103,6 @@ def on_message(client, userdata, msg):
     elif strmsg == ("Request to Lock"):
         lock_door(client)
     elif strtopic == TOPIC_ACTIVATE_TEMP_SUB:
-        print("Hello")
         check_password(client, strmsg, TOPIC_ACTIVATE_TEMP_SUB)
     elif strtopic == TOPIC_UNLOCK_WITH_TEMP_SUB:
         use_temp_pw_to_unlock(client, strmsg)
@@ -116,10 +112,6 @@ def on_message(client, userdata, msg):
     else:
         exit()
 
-# def break_lock(lock):
-#     print("Lock broken")
-#     lock.disconnet()
-
 
 def main():
     lock = mqtt.Client(CLIENTID)
@@ -128,8 +120,6 @@ def main():
     lock.loop_start()
     lock.on_message = on_message
     time.sleep(40)
-    #LWT
-    # lock.break_lock(lock)
     lock.disconnect()
     lock.loop_stop()
 
