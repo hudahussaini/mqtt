@@ -34,12 +34,19 @@ def simulate_broken_lock(mobile):
     # Simulate the lock entering a broken state
     mobile.publish(MQTT_TOPIC_BREAK, "Lock is Broken!")
 
+def view_lock_status(mobile):
+    mobile.publish(MQTT_TOPIC_LOCK_PUB, "Lock status request")
+
+def exit_request(mobile):
+    mobile.publish(MQTT_TOPIC_LOCK_PUB, "Exit request")
+    
 def on_message(client, userdata, msg):
     """
     Anytime a message is published to server this runs
     """
     strmsg = (msg.payload).decode()
     print("Message from smartlock: ", strmsg)
+
 
 
 def main():
@@ -50,15 +57,17 @@ def main():
     mobile.on_message = on_message
 
     while True:
+        time.sleep(0.5)
         print("\nMenu:")
         print("1. Unlock")
         print("2. Lock")
         print("3. Activate Temporary Password")
         print("4. Use Temporary Password")
         print("5. Simulate lock break")
-        print("6. Exit")
+        print("6. View current state of Smart Lock")
+        print("7. Exit")
 
-        choice = input("Enter your choice (1-6): ")
+        choice = input("Enter your choice (1-7): ")
         if choice == '1':
             user_password = input("Please enter your password: ")
             request_to_unlock(mobile, MQTT_TOPIC_LOCK_PUB, user_password)
@@ -73,13 +82,16 @@ def main():
         elif choice == '5':
             simulate_broken_lock(mobile)
         elif choice == '6':
+            view_lock_status(mobile)
+        elif choice == '7':
             print("Exiting program. Goodbye!")
+            exit_request(mobile)
             mobile.disconnect()
             mobile.loop_stop()
             exit()
             # break
         else:
-            print("Invalid choice. Please enter a number between 1 and 5.")
+            print("Invalid choice. Please enter a number between 1 and 7.")
 
     # time.sleep(40)
     # mobile.disconnect()
