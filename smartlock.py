@@ -43,7 +43,7 @@ def unlock_door(lock):
     If this was real we would call a function to actually unlock the door
     Send signal back to mobile saying door is unlocked
     """
-    print("Mobile Client is Unlocking")
+    print("Mobile Client has requested to Unlock")
     # if Temp_Activated == True:
     #     lock.publish(MQTT_TOPIC_LOCK_PUB, "Temp password needed")
     lock.publish(MQTT_TOPIC_LOCK_PUB, "*click* *click* the door has been unlocked")
@@ -55,7 +55,7 @@ def check_password(lock, strmessage, topic):
     str_message_pass = strmessage.split(": ", 1)
     #str message is an array with [request, password]
     password = str_message_pass[1]
-    print(password)
+    print("User Password Entered: ", password)
     if FINAL_PASSWORD == password:
         if topic == TOPIC_ACTIVATE_TEMP_SUB:
             Activate_Temp(lock)
