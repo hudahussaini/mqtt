@@ -5,6 +5,7 @@ MQTT_TOPIC_LOCK_SUB= "Mobile"
 MQTT_TOPIC_LOCK_PUB= "Smartlock"
 TOPIC_ACTIVATE_TEMP_SUB = "Activate_Temp"
 TOPIC_UNLOCK_WITH_TEMP_SUB = "Unlock_with_temp"
+TOPIC_BREAK = "Break"
 FINAL_PASSWORD = 'QWERTY123'
 TEMP_PASSWORD = "12345678"
 Temp_Activated = False
@@ -23,7 +24,8 @@ def start_smartlock():
     lock.subscribe(MQTT_TOPIC_LOCK_SUB)
     lock.subscribe(TOPIC_ACTIVATE_TEMP_SUB)
     lock.subscribe(TOPIC_UNLOCK_WITH_TEMP_SUB)
-    # lock.will_set("Break", "Lock is Broken!")
+    lock.subscribe(TOPIC_BREAK)
+    lock.will_set(TOPIC_BREAK, "Lock is Broken!", qos=0, retain=False)
     return lock
 
 def lock_door(lock):
@@ -81,6 +83,11 @@ def use_temp_pw_to_unlock(lock, strmsg):
         Dectivate_temp()
     else:
         lock.publish(MQTT_TOPIC_LOCK_PUB, "password is wrong or temp pw not activated")
+
+# def send_notification(lock):
+#     # Implement your notification logic here
+#     lock.publish(MQTT_TOPIC_LOCK_PUB, "WARNING: Lock has been broken into")
+
     
 def on_message(client, userdata, msg):
     #print(msg.topic+" "+str(msg.payload))
@@ -99,6 +106,9 @@ def on_message(client, userdata, msg):
         check_password(client, strmsg, TOPIC_ACTIVATE_TEMP_SUB)
     elif strtopic == TOPIC_UNLOCK_WITH_TEMP_SUB:
         use_temp_pw_to_unlock(client, strmsg)
+    # elif strtopic == TOPIC_BREAK:
+    #     print("Lock is broken! Sending notification.")
+    #     send_notification(client)
     else:
         exit()
 

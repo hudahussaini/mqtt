@@ -5,6 +5,7 @@ MQTT_TOPIC_LOCK_PUB= "Mobile"
 TOPIC_ACTIVATE_TEMP_PUB = "Activate_Temp"
 TOPIC_UNLOCK_WITH_TEMP_PUB = "Unlock_with_temp"
 MQTT_TOPIC_LOCK_SUB= "Smartlock"
+MQTT_TOPIC_BREAK = "Break"
 
 CLIENTID = "mobile"
 BROKER = "localhost"
@@ -20,6 +21,8 @@ def start_session():
     mobile.subscribe(MQTT_TOPIC_LOCK_SUB)
     return mobile
 
+def on_connect(client, userdata, flags, rc):
+    print("Connected with result code "+str(rc))
 
 def request_to_unlock(mobile, topic, password):
     mobile.publish(topic, f'Request to Unlock: {password}')
@@ -27,6 +30,9 @@ def request_to_unlock(mobile, topic, password):
 def request_to_lock(mobile):
     mobile.publish(MQTT_TOPIC_LOCK_PUB, "Request to Lock")
 
+def simulate_broken_lock(mobile):
+    # Simulate the lock entering a broken state
+    mobile.disconnect()
 
 def on_message(client, userdata, msg):
     """
@@ -40,13 +46,15 @@ def main():
     mobile = start_session()
     mobile.loop_start()
     mobile.on_message = on_message
+    mobile.on_connect = on_connect
 
     print("\nMenu:")
     print("1. Unlock")
     print("2. Lock")
     print("3. Activate Temporary Password")
     print("4. Use Temporary Password")
-    print("5. Exit")
+    print("5. Simulate lock break")
+    print("6. Exit")
 
     choice = input("Enter your choice (1-5): ")
     if choice == '1':
@@ -61,11 +69,13 @@ def main():
         user_temp_password = input("Please enter the temp password: ")
         request_to_unlock(mobile, TOPIC_UNLOCK_WITH_TEMP_PUB, user_temp_password)
     elif choice == '5':
+        simulate_broken_lock(mobile)
+    elif choice == '6':
         print("Exiting program. Goodbye!")
         exit()
     else:
         print("Invalid choice. Please enter a number between 1 and 5.")
-        
+
     time.sleep(40)
     mobile.disconnect()
     mobile.loop_stop()
