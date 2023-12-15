@@ -14,19 +14,21 @@ CLIENTID = "SmartLock"
 BROKER = "localhost"
 PORT = 1883
 
-def start_smartlock():
+def start_smartlock(lock):
     """
     takes in password and lock and unlock
     subscribe to mobile
     """
-    lock = mqtt.Client(CLIENTID)
+    lock.will_set(TOPIC_BREAK, "Lock is Broken!", qos=0, retain=False)
     lock.connect(BROKER, PORT)
     lock.subscribe(MQTT_TOPIC_LOCK_SUB)
     lock.subscribe(TOPIC_ACTIVATE_TEMP_SUB)
     lock.subscribe(TOPIC_UNLOCK_WITH_TEMP_SUB)
     lock.subscribe(TOPIC_BREAK)
-    lock.will_set(TOPIC_BREAK, "Lock is Broken!", qos=0, retain=False)
     return lock
+
+def on_connect(client, userdata, flags, rc):
+    print("Connected with result code "+str(rc))
 
 def lock_door(lock):
     """
@@ -88,7 +90,10 @@ def use_temp_pw_to_unlock(lock, strmsg):
 #     # Implement your notification logic here
 #     lock.publish(MQTT_TOPIC_LOCK_PUB, "WARNING: Lock has been broken into")
 
-    
+def simulate_broken_lock(client):
+    # Simulate the lock entering a broken state
+    client.disconnect()
+
 def on_message(client, userdata, msg):
     #print(msg.topic+" "+str(msg.payload))
     """
@@ -96,7 +101,6 @@ def on_message(client, userdata, msg):
     """
     strmsg = (msg.payload).decode()
     strtopic = msg.topic
-    print("log", strmsg)
     if strtopic == MQTT_TOPIC_LOCK_SUB:
         check_password(client, strmsg, MQTT_TOPIC_LOCK_SUB)
     elif strmsg == ("Request to Lock"):
@@ -106,9 +110,9 @@ def on_message(client, userdata, msg):
         check_password(client, strmsg, TOPIC_ACTIVATE_TEMP_SUB)
     elif strtopic == TOPIC_UNLOCK_WITH_TEMP_SUB:
         use_temp_pw_to_unlock(client, strmsg)
-    # elif strtopic == TOPIC_BREAK:
-    #     print("Lock is broken! Sending notification.")
-    #     send_notification(client)
+    elif strtopic == TOPIC_BREAK:
+        print("simulating broken lock")
+        simulate_broken_lock(client)
     else:
         exit()
 
@@ -118,7 +122,9 @@ def on_message(client, userdata, msg):
 
 
 def main():
-    lock = start_smartlock()
+    lock = mqtt.Client(CLIENTID)
+    lock.on_connect = on_connect
+    start_smartlock(lock)
     lock.loop_start()
     lock.on_message = on_message
     time.sleep(40)

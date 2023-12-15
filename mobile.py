@@ -11,14 +11,14 @@ CLIENTID = "mobile"
 BROKER = "localhost"
 PORT = 1883
 
-def start_session():
+def start_session(mobile):
     """
     takes in password and lock and unlock
     subscribe to mobile
     """
-    mobile = mqtt.Client(CLIENTID)
     mobile.connect(BROKER, PORT)
     mobile.subscribe(MQTT_TOPIC_LOCK_SUB)
+    mobile.subscribe(MQTT_TOPIC_BREAK)
     return mobile
 
 def on_connect(client, userdata, flags, rc):
@@ -32,7 +32,7 @@ def request_to_lock(mobile):
 
 def simulate_broken_lock(mobile):
     # Simulate the lock entering a broken state
-    mobile.disconnect()
+    mobile.publish(MQTT_TOPIC_BREAK, "Lock is Broken!")
 
 def on_message(client, userdata, msg):
     """
@@ -43,10 +43,11 @@ def on_message(client, userdata, msg):
 
 
 def main():
-    mobile = start_session()
+    mobile = mqtt.Client(CLIENTID)
+    mobile.on_connect = on_connect
+    start_session(mobile)
     mobile.loop_start()
     mobile.on_message = on_message
-    mobile.on_connect = on_connect
 
     print("\nMenu:")
     print("1. Unlock")
@@ -56,7 +57,7 @@ def main():
     print("5. Simulate lock break")
     print("6. Exit")
 
-    choice = input("Enter your choice (1-5): ")
+    choice = input("Enter your choice (1-6): ")
     if choice == '1':
         user_password = input("Please enter your password: ")
         request_to_unlock(mobile, MQTT_TOPIC_LOCK_PUB, user_password)
