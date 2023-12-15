@@ -12,41 +12,82 @@ Temp_Activated = False
 loop_end = False
 
 CLIENTID = "SmartLock"
-BROKER = "localhost"
+#setting IP to the network IP that both computers are on 
+BROKER = "192.168.1.5"
+#mosquitto runs on port 1883
 PORT = 1883
 
 def start_smartlock(lock):
     """
-    takes in password and lock and unlock
-    subscribe to mobile
+    This function is the first few steps needed to set up the client. 
+    Uses the client ID initialized, connects it to the brokers and subscribes
+    to respective topics. Also sets a LWT in case of unexpected disconnect
+
+    Input and Output: Client Object
     """
     lock.will_set(TOPIC_BREAK, "Lock is Broken!", qos=0, retain=False)
     lock.connect(BROKER, PORT)
+    #subscriptions start - Could also have done in list 
     lock.subscribe(MQTT_TOPIC_LOCK_SUB)
     lock.subscribe(TOPIC_ACTIVATE_TEMP_SUB)
     lock.subscribe(TOPIC_UNLOCK_WITH_TEMP_SUB)
     lock.subscribe(TOPIC_BREAK)
+    #subscription ends
     return lock
 
 def on_connect(client, userdata, flags, rc):
+    """
+    Callback function that is executed and maintains 
+    connection with broker once .connect() is called
+
+    Input: MQTT client object, User data, Connect flags recieved, Result code recieved
+    Output: None
+
+    """
     print("Connected with result code "+str(rc))
 
 def read_lock_state():
+    """
+    Prototype lock:
+    lock_state.txt will READ state (1 - unlocked or 0 - locked)
+    Input: None
+    Output: return current lock state
+    """
     with open ('lock_state.txt', 'r') as f:
+        #read in file and remove whitespace
         lock_state = f.read().strip()
         return lock_state
 
 def display_lock_state(lock):
-        if read_lock_state() == '0':
-            lock.publish(MQTT_TOPIC_LOCK_PUB, "Smart Lock is locked.")
-        elif read_lock_state() == '1':
-            lock.publish(MQTT_TOPIC_LOCK_PUB, "Smart Lock is unlocked.")
-        else:
-            lock.publish(MQTT_TOPIC_LOCK_PUB, "Error: cannot determine state of lock.")
+    """
+    Uses read_lock_state function to check state and then
+    print current state to broker.
+
+    Topic: "Smartlock"
+
+    Input: Lock Client Object
+    Output: Publish state to broker
+    """
+    if read_lock_state() == '0':
+        lock.publish(MQTT_TOPIC_LOCK_PUB, "Smart Lock is locked.")
+    elif read_lock_state() == '1':
+        lock.publish(MQTT_TOPIC_LOCK_PUB, "Smart Lock is unlocked.")
+    else:
+        lock.publish(MQTT_TOPIC_LOCK_PUB, "Error: cannot determine state of lock.")
 
 def update_lock_state(new_state):
+    """
+    Based on the user locking or unlocking, the new state needs to be updated.
+    Here we are printing a message to user to indicate the new state the lock
+    will be entering into. We are also updating the lock state file. 
+
+    Input: state (1 or 0)
+    Output: None
+    """
+    # 1 - unlocked
     if new_state == 1:
         print("Entering unlocked state.")
+    # 0 - locked
     elif new_state == 0:
         print('Entering locked state.')
     else:
@@ -57,8 +98,15 @@ def update_lock_state(new_state):
 
 def lock_door(lock):
     """
-    If this was real we would call a function to actually lock the door
-    Send signal back to mobile saying door is locked
+    Lock door function:
+    1. Checks if the smart lock is already in the desired state. If it's not, change the state and 
+    publish to broker. 
+    If this was real we would call a function to actually lock the door, to prototype we change the 
+    text file which represents the physical lock being changed.
+    If it is currently unlocked (1) then we can lock or else user will recieve an error.
+
+    Input: lock client object
+    Output: Publish updates to broker
     """
     if read_lock_state() == '0':
         lock.publish(MQTT_TOPIC_LOCK_PUB, "\nError: the door is already locked. Please choose another option:")
@@ -73,6 +121,9 @@ def lock_door(lock):
 
 def unlock_door(lock):
     """
+    unlock door function:
+    1. Checks if the smart lock is already in the desired state. If it's not, change the state and 
+    publish to broker. 
     If this was real we would call a function to actually unlock the door
     Send signal back to mobile saying door is unlocked
     """

@@ -8,7 +8,7 @@ MQTT_TOPIC_LOCK_SUB= "Smartlock"
 MQTT_TOPIC_BREAK = "Break"
 
 CLIENTID = "mobile"
-BROKER = "localhost"
+BROKER = "192.168.1.5"
 PORT = 1883
 
 def start_session(mobile):
