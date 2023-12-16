@@ -12,7 +12,7 @@ Temp_Activated = False
 loop_end = False
 
 CLIENTID = "SmartLock"
-#setting IP to the network IP that both computers are on 
+#Setting shared Broker IP of external computer
 BROKER = "192.168.1.5"
 #mosquitto runs on port 1883
 PORT = 1883
@@ -65,7 +65,7 @@ def display_lock_state(lock):
 
     Topic: "Smartlock"
 
-    Input: Lock Client Object
+    Input: smartlock Client Object
     Output: Publish state to broker
     """
     if read_lock_state() == '0':
@@ -105,7 +105,7 @@ def lock_door(lock):
     text file which represents the physical lock being changed.
     If it is currently unlocked (1) then we can lock or else user will recieve an error.
 
-    Input: lock client object
+    Input: smartlock client object
     Output: Publish updates to broker
     """
     if read_lock_state() == '0':
@@ -124,12 +124,16 @@ def unlock_door(lock):
     unlock door function:
     1. Checks if the smart lock is already in the desired state. If it's not, change the state and 
     publish to broker. 
-    If this was real we would call a function to actually unlock the door
-    Send signal back to mobile saying door is unlocked
+
+    If this was real we would call a function to actually unlock the door, to prototype we change the 
+    text file which represents the physical lock being changed.
+    If it is currently locked (0) then we can unlock or else user will recieve an error.
+
+    Input: smartlock client object
+    Output: Publish updates to broker
+    
     """
     print("Mobile Client has requested to Unlock")
-    # if Temp_Activated == True:
-    #     lock.publish(MQTT_TOPIC_LOCK_PUB, "Temp password needed")
     if read_lock_state() == '0':
         update_lock_state(1)
         lock.publish(MQTT_TOPIC_LOCK_PUB, "*click* *click* the door has been unlocked")
@@ -145,37 +149,49 @@ def unlock_door(lock):
 
 def check_password(lock, strmessage, topic):
     """
-    Check password with final password 
+    Check password with final password through string expression matching.
+    Sicne temp pw is activated with permanent pw too we can use this function as well
+
+    Input: Smartlock client object, payload, and topic
     """
-    str_message_pass = strmessage.split(": ", 1)
     #str message is an array with [request, password]
+    str_message_pass = strmessage.split(": ", 1)
+    #take password from str_message_pass
     password = str_message_pass[1]
     print("User Password Entered: ", password)
     if FINAL_PASSWORD == password:
+        #if pw is corrent and topic sub is regarding activating temp pw
         if topic == TOPIC_ACTIVATE_TEMP_SUB:
             Activate_Temp(lock)
+        #else just unlock door normally 
         else:
             unlock_door(lock)
-            #lock.loop_forever(10.0)
-            #lock.loop_start()
-            #time.sleep(10)
-            #lock.publish(MQTT_TOPIC_LOCK_PUB, "Door locking...10 seconds of inactivity")
-            #lock.loop_stop()
-            #lock door for saftey after 10 secondsß
-        #    lock_door(lock)
-            
-
     else:
         lock.publish(MQTT_TOPIC_LOCK_PUB, "password is wrong")
         #temp_password(lock)
 
 def Activate_Temp(lock):
+    """
+    Switches global variable temp_activated from True or False 
+    to indicate the status of temp pw. 
+    If true we publish the temp pw to the mobile client
+
+    Input: Smartlock client object, temp_activated (Global Variable)
+    """
     global Temp_Activated
+    #temp pw is now usable to unlock door
     Temp_Activated = True
     lock.publish(MQTT_TOPIC_LOCK_PUB, f"temp pw activated.\nYour temporary password is: {TEMP_PASSWORD}")
     
 
 def Dectivate_temp():
+    """
+    Switches global variable temp_activated from True or False 
+    to indicate the status of temp pw. 
+    If true we publish the temp pw to the mobile client
+
+    Input: Smartlock client object, temp_activated (Global Variable)
+    """
     global Temp_Activated
     Temp_Activated = False
 
@@ -190,29 +206,38 @@ def use_temp_pw_to_unlock(lock, strmsg):
         lock.publish(MQTT_TOPIC_LOCK_PUB, "\nError: Password is wrong, temp password not activated, or temp password re-usal attempted. Please choose another option and try again: ")
 
 def simulate_broken_lock(client):
+    """
+    Trigger LWT by unexpectedly disconnecting lock client object
+
+    Input: Smartlock client object
+    """
     # Simulate the lock entering a broken state
     client.disconnect()
 
 def on_message(client, userdata, msg):
-    #print(msg.topic+" "+str(msg.payload))
     """
-    Anytime a message is published to server this runs
+    Anytime a message is published to server this callback function runs. 
+
+    Input: Smartlock Client Object, User date, Payload
     """
+    #turning byte array to string to get the message send from mobile
     strmsg = (msg.payload).decode()
+    #setting variable for msg.topic
     strtopic = msg.topic
+    #Matches topic and calls respective function
     if strtopic == MQTT_TOPIC_LOCK_SUB:
         if strmsg == ("Request to Lock"):
             lock_door(client)
         elif strmsg == ("Lock status request"):
             display_lock_state(client)
         elif strmsg == ("Exit request"):
+            #ends loop
             global loop_end
             loop_end = True
             return loop_end
         else:
             check_password(client, strmsg, MQTT_TOPIC_LOCK_SUB)
-    #elif strmsg == ("Request to Lock"):
-        #lock_door(client)
+    #activate temp pw
     elif strtopic == TOPIC_ACTIVATE_TEMP_SUB:
         check_password(client, strmsg, TOPIC_ACTIVATE_TEMP_SUB)
     elif strtopic == TOPIC_UNLOCK_WITH_TEMP_SUB:
@@ -225,19 +250,25 @@ def on_message(client, userdata, msg):
 
 
 def main():
+    #init mqtt client object
     lock = mqtt.Client(CLIENTID)
+    #sets up connection with broker
     lock.on_connect = on_connect
+    #resets state to Default for any new connection
     if read_lock_state() == '1':
         update_lock_state(0)
         print("Resetting to Default State 0: Locked")
     else:
         print("Default State 0: Locked")
+    #subscriptions to topics and set up of LWT
     start_smartlock(lock)
     while loop_end != True:
+        #start loop 
         lock.loop_start()
+        #anytime message is published to smartlock, on message will run
         lock.on_message = on_message
-        #time.sleep(40)
     if loop_end == True:
+        #if user sends exit request or system wants to exit, disconnet from broker and stop loop
         lock.disconnect()
         lock.loop_stop()
         exit()
